@@ -5,6 +5,7 @@
 #include <sched.h>
 #include "master_graph.h"
 #include "parameter_factory.h"
+#include <omp.h>
 
 auto get_ago_affinity_info = []
     (RaliAffinity rali_affinity,
@@ -338,6 +339,28 @@ MasterGraph::copy_output(
 
 #define CHECK_CL_CALL_RET(x) { cl_int ret; ret = x; if( ret != CL_SUCCESS) THROW("ocl call failed "+STR(#x)+" error "+TOSTR(ret)) }
 
+void process_tensor(unsigned char* in_buffer, float* out_ptr, bool reverse_channels,  RaliTensorFormat format, unsigned w, unsigned h, unsigned c, float multiplier[3], float offset[3])
+{
+    if(format == RaliTensorFormat::NHWC)
+    {
+        auto channel_size  = w * h;
+        for(unsigned channel_idx = 0; channel_idx < c; channel_idx++)
+            for(unsigned i = 0; i < channel_size; i++)
+                out_ptr[channel_idx+ i*c] =
+                        offset[channel_idx] + multiplier[channel_idx]*(reverse_channels ? (float)(in_buffer[i*c+c-channel_idx-1]) : (float)(in_buffer[i*c+channel_idx]));
+    }
+    if(format == RaliTensorFormat::NCHW)
+    {
+        auto channel_size  = w * h;
+        for(unsigned channel_idx = 0; channel_idx < c; channel_idx++)
+            for(unsigned i = 0; i < channel_size; i++)
+                out_ptr[channel_idx*channel_size + i] =
+                        offset[channel_idx] + multiplier[channel_idx]*(reverse_channels ? (float)(in_buffer[c*i+c-channel_idx-1]) : (float)(in_buffer[c*i+channel_idx]));
+
+
+    }
+}
+
 MasterGraph::Status
 MasterGraph::copy_out_tensor(float *out_ptr, RaliTensorFormat format, float multiplier0, float multiplier1,
                              float multiplier2, float offset0, float offset1, float offset2, bool reverse_channels)
@@ -414,33 +437,17 @@ MasterGraph::copy_out_tensor(float *out_ptr, RaliTensorFormat format, float mult
         size_t dest_buf_offset = 0;
 
         auto output_buffers =_ring_buffer.get_read_buffers();
-        for( auto&& out_image: output_buffers)
+#pragma omp parallel for 
+        for( unsigned idx = 0; idx < output_buffers.size(); idx++)
         {
-            auto in_buffer = (unsigned char*)out_image;
-            if(format == RaliTensorFormat::NHWC)
-            {
-                auto channel_size  = w * h;
-                for(unsigned channel_idx = 0; channel_idx < c; channel_idx++)
-                    for(unsigned i = 0; i < channel_size; i++)
-                        out_ptr[dest_buf_offset+channel_idx+ i*c] =
-                                offset[channel_idx] + multiplier[channel_idx]*(reverse_channels ? (float)(in_buffer[i*c+c-channel_idx-1]) : (float)(in_buffer[i*c+channel_idx]));
-            }
-            if(format == RaliTensorFormat::NCHW)
-            {
-                auto channel_size  = w * h;
-                for(unsigned channel_idx = 0; channel_idx < c; channel_idx++)
-                    for(unsigned i = 0; i < channel_size; i++)
-                        out_ptr[dest_buf_offset+channel_idx*channel_size + i] =
-                                offset[channel_idx] + multiplier[channel_idx]*(reverse_channels ? (float)(in_buffer[c*i+c-channel_idx-1]) : (float)(in_buffer[c*i+channel_idx]));
-
-
-            }
-            dest_buf_offset += single_output_image_size;
+            process_tensor((unsigned char*)output_buffers[idx], out_ptr+idx*single_output_image_size, reverse_channels, format, w, h, c,multiplier, offset );
         }
     }
     _convert_time.end();
     return Status::OK;
 }
+
+
 
 MasterGraph::Status
 MasterGraph::copy_output(unsigned char *out_ptr)
@@ -478,8 +485,15 @@ MasterGraph::copy_output(unsigned char *out_ptr)
     }
     else
     {
+        auto output_buffers =_ring_buffer.get_read_buffers();
+#pragma omp parallel for
+        for( unsigned idx = 0; idx < output_buffers.size(); idx++)
+        {
+            //LOG(TOSTR(omp_get_thread_num()))
+            memcpy(out_ptr+size*idx, output_buffers[idx], size);
+        }
         // host memory
-        memcpy(out_ptr, _ring_buffer.get_host_master_read_buffer(), size * _output_images.size());
+        //memcpy(out_ptr, _ring_buffer.get_host_master_read_buffer(), size * _output_images.size());
     }
     _convert_time.end();
     return Status::OK;

@@ -33,6 +33,7 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/../amd_openvx/cmake)
 find_package(OpenCL QUIET)
 find_package(AMDRPP QUIET)
 find_package(TurboJpeg QUIET)
+find_package(OpenMP)
 
 set(MIN_CMAKE_VER_REQUIRED 3.10)
 set(MIN_CXX_VER_REQUIRED 7.4)
@@ -58,6 +59,10 @@ if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS ${MIN_CXX_VER_REQUIRED})
 	set(BUILD_RALI false)
 	message("-- ${Yellow}rali library requires g++ version greater than or equal to ${MIN_CXX_VER_REQUIRED}, currently ${CMAKE_CXX_COMPILER_VERSION} is installed${ColourReset}")
 endif()
+if(NOT OpenMP_CXX_FOUND)
+	set(BUILD_RALI false)
+	message("-- ${Yellow}rali library requires OpenMP, Not Found ${ColourReset}")
+endif()
 
 
 if(${BUILD_RALI})
@@ -80,8 +85,8 @@ if(${BUILD_RALI})
 
 	add_library(${PROJECT_NAME} SHARED ${SOURCES})
 
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall ")
-	target_link_libraries(${PROJECT_NAME} -fPIC turbojpeg openvx vx_rpp )
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Ofast -Wall -fopenmp ")
+	target_link_libraries(${PROJECT_NAME} -fPIC turbojpeg openvx vx_rpp OpenMP::OpenMP_CXX)
 
 	install (TARGETS rali DESTINATION lib)
 else()
