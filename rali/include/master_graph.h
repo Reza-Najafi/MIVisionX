@@ -8,9 +8,6 @@
 #include "timing_debug.h"
 #include "node.h"
 #include "node_jpeg_file_source.h"
-#include "node_video_file_source.h"
-#include "video_loader_module.h"
-
 class MasterGraph
 {
 public:

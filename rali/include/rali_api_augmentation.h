@@ -135,7 +135,16 @@ extern "C"  RaliImage  RALI_API_CALL raliContrastFixed(RaliContext context, Rali
 /// \param axis
 /// \param is_output
 /// \return
-extern "C"  RaliImage  RALI_API_CALL raliFlip(RaliContext context, RaliImage input, RaliFlipAxis axis, bool is_output );
+extern "C"  RaliImage  RALI_API_CALL raliFlip(RaliContext context, RaliImage input, bool is_output,
+                                                RaliIntParam flip_axis = NULL);
+
+///
+/// \param context
+/// \param input
+/// \param axis
+/// \param is_output
+/// \return
+extern "C"  RaliImage  RALI_API_CALL raliFlipFixed(RaliContext context, RaliImage input, int flip_axis, bool is_output );
 
 /// Accepts U8 and RGB24 inputs
 /// \param context
@@ -144,7 +153,7 @@ extern "C"  RaliImage  RALI_API_CALL raliFlip(RaliContext context, RaliImage inp
 /// \param sdev
 /// \return
 extern "C"  RaliImage  RALI_API_CALL raliBlur(RaliContext context, RaliImage input, bool is_output,
-                                                RaliFloatParam sdev = NULL);
+                                                RaliIntParam sdev = NULL);
 
 ///
 /// \param context
@@ -153,7 +162,7 @@ extern "C"  RaliImage  RALI_API_CALL raliBlur(RaliContext context, RaliImage inp
 /// \param is_output
 /// \return
 
-extern "C"  RaliImage  RALI_API_CALL raliBlurFixed(RaliContext context, RaliImage input, float sdev, bool is_output );
+extern "C"  RaliImage  RALI_API_CALL raliBlurFixed(RaliContext context, RaliImage input, int sdev, bool is_output );
 
 /// Blends two input images given the ratio: output = input1*ratio + input2*(1-ratio)
 /// \param context
@@ -176,7 +185,6 @@ extern "C"  RaliImage  RALI_API_CALL raliBlendFixed(RaliContext context,RaliImag
                                                     float ratio,
                                                     bool is_output );
 
-///
 /// \param context
 /// \param input
 /// \param is_output
@@ -190,10 +198,11 @@ extern "C"  RaliImage  RALI_API_CALL raliBlendFixed(RaliContext context,RaliImag
 /// \param dest_width
 /// \return
 extern "C"  RaliImage  RALI_API_CALL raliWarpAffine(RaliContext context, RaliImage input, bool is_output,
-                                                    RaliFloatParam x0 = NULL, RaliFloatParam x1 = NULL,
-                                                    RaliFloatParam y0= NULL, RaliFloatParam y1 = NULL,
-                                                    RaliFloatParam o0 = NULL, RaliFloatParam o1 = NULL,
-                                                    unsigned dest_height = 0, unsigned dest_width = 0);
+                                                     unsigned dest_height = 0, unsigned dest_width = 0,
+                                                     RaliFloatParam x0 = NULL, RaliFloatParam x1 = NULL,
+                                                     RaliFloatParam y0= NULL, RaliFloatParam y1 = NULL,
+                                                     RaliFloatParam o0 = NULL, RaliFloatParam o1 = NULL);
+
 ///
 /// \param context
 /// \param input
@@ -210,7 +219,7 @@ extern "C"  RaliImage  RALI_API_CALL raliWarpAffine(RaliContext context, RaliIma
 extern "C"  RaliImage  RALI_API_CALL raliWarpAffineFixed(RaliContext context, RaliImage input, float x0, float x1,
                                                          float y0, float y1, float o0, float o1, bool is_output,
                                                          unsigned int dest_height = 0, unsigned int dest_width = 0);
-///
+
 /// \param context
 /// \param input
 /// \param is_output
@@ -226,7 +235,6 @@ extern "C"  RaliImage  RALI_API_CALL raliFishEye(RaliContext context, RaliImage 
 extern "C"  RaliImage  RALI_API_CALL raliVignette(RaliContext context, RaliImage input, bool is_output,
                                                     RaliFloatParam sdev = NULL);
 
-///
 /// \param context
 /// \param input
 /// \param sdev
@@ -251,7 +259,8 @@ extern "C"  RaliImage  RALI_API_CALL raliJitter(RaliContext context, RaliImage i
 /// \param max
 /// \param is_output
 /// \return
-extern "C"  RaliImage  RALI_API_CALL raliJitterFixed(RaliContext context, RaliImage input, int kernel_size, bool is_output);
+extern "C"  RaliImage  RALI_API_CALL raliJitterFixed(RaliContext context, RaliImage input,
+                                                        int kernel_size, bool is_output);
 
 ///
 /// \param context
@@ -260,7 +269,7 @@ extern "C"  RaliImage  RALI_API_CALL raliJitterFixed(RaliContext context, RaliIm
 /// \param sdev
 /// \return
 extern "C"  RaliImage  RALI_API_CALL raliSnPNoise(RaliContext context, RaliImage input, bool is_output,
-                                                    RaliFloatParam sdev = NULL);
+                                                        RaliFloatParam sdev = NULL);
 
 ///
 /// \param context
@@ -268,7 +277,7 @@ extern "C"  RaliImage  RALI_API_CALL raliSnPNoise(RaliContext context, RaliImage
 /// \param sdev
 /// \param is_output
 /// \return
-extern "C"  RaliImage  RALI_API_CALL raliSnPNoiseFixed(RaliContext context, RaliImage input,float sdev, bool is_output);
+extern "C"  RaliImage  RALI_API_CALL raliSnPNoiseFixed(RaliContext context, RaliImage input, float sdev, bool is_output);
 
 ///
 /// \param context
@@ -279,7 +288,6 @@ extern "C"  RaliImage  RALI_API_CALL raliSnPNoiseFixed(RaliContext context, Rali
 extern "C"  RaliImage  RALI_API_CALL raliSnow(RaliContext context, RaliImage input, bool is_output,
                                                 RaliFloatParam sdev = NULL);
 
-///
 /// \param context
 /// \param input
 /// \param sdev
@@ -292,38 +300,46 @@ extern "C"  RaliImage  RALI_API_CALL raliSnowFixed(RaliContext context, RaliImag
 /// \param input
 /// \param is_output
 /// \param rain_value
+/// \param rain_width
+/// \param rain_heigth
+/// \param rain_transparency
 /// \return
 extern "C"  RaliImage  RALI_API_CALL raliRain(RaliContext context, RaliImage input, bool is_output,
-                                                RaliFloatParam rain_value = NULL);
+                                                RaliFloatParam rain_value = NULL,
+                                                RaliIntParam rain_width = NULL,
+                                                RaliIntParam rain_height = NULL,
+                                                RaliFloatParam rain_transparency = NULL);
 
-///
 /// \param context
 /// \param input
-/// \param rain_value
 /// \param is_output
+/// \param rain_value
+/// \param rain_width
+/// \param rain_heigth
+/// \param rain_transparency
 /// \return
-extern "C"  RaliImage  RALI_API_CALL raliRainFixed(RaliContext context, RaliImage input, float rain_value,
-                                                    bool is_output );
+extern "C"  RaliImage  RALI_API_CALL raliRainFixed(RaliContext context, RaliImage input,
+                                                        float rain_value,
+                                                        int rain_width,
+                                                        int rain_height,
+                                                        float rain_transparency,
+                                                        bool is_output);
 
-///
 /// \param context
 /// \param input
 /// \param is_output
 /// \param adjustment
 /// \return
 extern "C"  RaliImage  RALI_API_CALL raliColorTemp(RaliContext context, RaliImage input, bool is_output,
-                                                    RaliIntParam adjustment = NULL);
+                                                        RaliIntParam adjustment = NULL);
 
-///
 /// \param context
 /// \param input
 /// \param adjustment
 /// \param is_output
 /// \return
-extern "C"  RaliImage  RALI_API_CALL raliColorTempFixed(RaliContext context, RaliImage input, int adjustment,
-                                                        bool is_output );
+extern "C"  RaliImage  RALI_API_CALL raliColorTempFixed(RaliContext context, RaliImage input, int adjustment, bool is_output);
 
-///
 /// \param context
 /// \param input
 /// \param is_output
@@ -332,33 +348,31 @@ extern "C"  RaliImage  RALI_API_CALL raliColorTempFixed(RaliContext context, Ral
 extern "C"  RaliImage  RALI_API_CALL raliFog(RaliContext context, RaliImage input, bool is_output,
                                                 RaliFloatParam fog_value = NULL);
 
-///
 /// \param context
 /// \param input
 /// \param fog_value
 /// \param is_output
 /// \return
-extern "C"  RaliImage  RALI_API_CALL raliFogFixed(RaliContext context, RaliImage input, float fog_value,bool is_output);
+extern "C"  RaliImage  RALI_API_CALL raliFogFixed(RaliContext context, RaliImage input, float fog_value, bool is_output);
 
-///
 /// \param context
 /// \param input
 /// \param is_output
 /// \param strength
 /// \param zoom
 /// \return
-extern "C"  RaliImage  RALI_API_CALL raliLensCorrection(RaliContext context, RaliImage input, bool is_output ,
-                                                        RaliFloatParam strength = NULL, RaliFloatParam zoom = NULL);
+extern "C"  RaliImage  RALI_API_CALL raliLensCorrection(RaliContext context, RaliImage input, bool is_output,
+                                                        RaliFloatParam strength = NULL,
+                                                        RaliFloatParam zoom = NULL);
 
-///
 /// \param context
 /// \param input
 /// \param strength
 /// \param zoom
 /// \param is_output
 /// \return
-extern "C"  RaliImage  RALI_API_CALL raliLensCorrectionFixed(RaliContext context, RaliImage input, float strength,
-                                                                float zoom, bool is_output );
+extern "C"  RaliImage  RALI_API_CALL raliLensCorrectionFixed(RaliContext context, RaliImage input,
+                                                                float strength, float zoom, bool is_output);
 
 ///
 /// \param context
@@ -374,20 +388,60 @@ extern "C"  RaliImage  RALI_API_CALL raliPixelate(RaliContext context, RaliImage
 /// \param shift
 /// \return
 extern "C"  RaliImage  RALI_API_CALL raliExposure(RaliContext context, RaliImage input, bool is_output,
-                                                    RaliFloatParam shift = NULL);
-///
+                                                        RaliFloatParam shift = NULL);
+
 /// \param context
 /// \param input
-/// \param shift
 /// \param is_output
+/// \param shift
 /// \return
-extern "C"  RaliImage  RALI_API_CALL raliExposureFixed(RaliContext context, RaliImage input,float shift,bool is_output);
+extern "C"  RaliImage  RALI_API_CALL raliExposureFixed(RaliContext context, RaliImage input, float shift, bool is_output);
 
 ///
 /// \param context
 /// \param input
 /// \param is_output
 /// \return
+
+extern "C"  RaliImage  RALI_API_CALL raliHue(RaliContext context, RaliImage input,
+                                                bool is_output,
+                                                RaliFloatParam hue = NULL);
+
+///
+/// \param context
+/// \param input
+/// \param is_output
+/// \param hue
+/// \return
+
+extern "C"  RaliImage  RALI_API_CALL raliHueFixed(RaliContext context, RaliImage input,
+                                                float hue,
+                                                bool is_output);
+
+/// Accepts U8 and RGB24 inputs.
+/// \param context
+/// \param input
+/// \param is_output
+/// \param min
+/// \param max
+/// \return
+
+extern "C" RaliImage RALI_API_CALL raliSaturation(RaliContext context,
+                                                RaliImage input,
+                                                bool is_output,
+                                                RaliFloatParam sat = NULL);
+
+extern "C"  RaliImage  RALI_API_CALL raliSaturationFixed(RaliContext context, RaliImage input, float sat,
+                                                bool is_output);
+
+/// Accepts U8 and RGB24 inputs.
+/// \param context
+/// \param input
+/// \param is_output
+/// \param min
+/// \param max
+/// \return
+
 extern "C"  RaliImage  RALI_API_CALL raliCopy(RaliContext context, RaliImage input, bool is_output);
 
 ///
@@ -396,4 +450,30 @@ extern "C"  RaliImage  RALI_API_CALL raliCopy(RaliContext context, RaliImage inp
 /// \param is_output
 /// \return
 extern "C"  RaliImage  RALI_API_CALL raliNop(RaliContext context, RaliImage input, bool is_output);
+
+
+/// Accepts U8 and RGB24 inputs
+/// \param context
+/// \param input
+/// \param is_output
+/// \return
+extern "C"  RaliImage  RALI_API_CALL raliColorTwist(RaliContext context, RaliImage input, bool is_output,
+                                                        RaliFloatParam alpha = NULL,
+                                                        RaliFloatParam beta = NULL,
+                                                        RaliFloatParam hue = NULL,
+                                                        RaliFloatParam sat = NULL);
+
+/// Accepts U8 and RGB24 inputs
+/// \param context
+/// \param input
+/// \param is_output
+/// \return
+extern "C"  RaliImage  RALI_API_CALL raliColorTwistFixed(RaliContext context, RaliImage input,
+                                                        float alpha, float beta, float hue, float sat,
+                                                        bool is_output);
+
+extern "C"  RaliImage  RALI_API_CALL raliCropMirrorNormalize(RaliContext context, RaliImage input, unsigned dest_width,
+                                                unsigned dest_height, bool is_output);
+
+
 #endif //MIVISIONX_RALI_API_AUGMENTATION_H

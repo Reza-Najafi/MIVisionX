@@ -2,8 +2,11 @@
 #include <cmath>
 #include <VX/vx.h>
 #include <VX/vx_compatibility.h>
+#include <graph.h>
 #include "parameter_crop_resize.h"
 #include "commons.h"
+
+
 void RandomCropResizeParam::set_area_coeff(Parameter<float>* area)
 {
     if(!area)
@@ -28,29 +31,100 @@ void RandomCropResizeParam::set_y_drift(Parameter<float>* y_drift)
     ParameterFactory::instance()->destroy_param(y_center_drift);
     y_center_drift = y_drift;
 }
+ void RandomCropResizeParam::set_batch_size(unsigned int bs)
+ {
+     batch_size = bs;
+ }
 
-
-void RandomCropResizeParam::update()
+void RandomCropResizeParam::create_array(std::shared_ptr<Graph> graph,unsigned int bs)
 {
-    calculate_area(
-            area_coeff->get(),
-            x_center_drift->get(),
-            y_center_drift->get());
-
-    vx_status status = VX_SUCCESS;
-
-    if ((status = vxWriteScalarValue(x1_vx_scalar, &x1)) != VX_SUCCESS)
-        WRN("ERROR: vxWriteScalarValue x1 failed " +TOSTR(status));
-
-    if ((status = vxWriteScalarValue(x2_vx_scalar, &x2)) != VX_SUCCESS)
-        WRN("ERROR: vxWriteScalarValue x1 failed " +TOSTR(status));
-
-    if ((status = vxWriteScalarValue(y1_vx_scalar, &y1)) != VX_SUCCESS)
-        WRN("ERROR: vxWriteScalarValue x1 failed " +TOSTR(status));
-
-    if ((status = vxWriteScalarValue(y2_vx_scalar, &y2)) != VX_SUCCESS)
-        WRN("ERROR: vxWriteScalarValue x1 failed " +TOSTR(status));
+    set_batch_size(bs);
+    x1_arr_val = (size_t*)malloc(sizeof(size_t)*batch_size);
+    y1_arr_val = (size_t*)malloc(sizeof(size_t)*batch_size);
+    x2_arr_val = (size_t*)malloc(sizeof(size_t)*batch_size);
+    y2_arr_val = (size_t*)malloc(sizeof(size_t)*batch_size);
+    x1_arr = vxCreateArray(vxGetContext((vx_reference)graph->get()), VX_TYPE_UINT64,batch_size);
+    y1_arr = vxCreateArray(vxGetContext((vx_reference)graph->get()), VX_TYPE_UINT64,batch_size);
+    x2_arr = vxCreateArray(vxGetContext((vx_reference)graph->get()), VX_TYPE_UINT64,batch_size);
+    y2_arr = vxCreateArray(vxGetContext((vx_reference)graph->get()), VX_TYPE_UINT64,batch_size);
+    vxAddArrayItems(x1_arr,batch_size, x1_arr_val, sizeof(size_t));
+    vxAddArrayItems(y1_arr,batch_size, y1_arr_val, sizeof(size_t));
+    vxAddArrayItems(x2_arr,batch_size, x2_arr_val, sizeof(size_t));
+    vxAddArrayItems(y2_arr,batch_size, y2_arr_val, sizeof(size_t));
+    update_array();
 }
+
+void RandomCropResizeParam::update_array()
+{
+    vx_status status = VX_SUCCESS;
+    for (uint i = 0; i < batch_size; i++)
+    {
+        area_coeff->renew();
+        float area = area_coeff->get();
+        x_center_drift->renew();
+        float x_center = x_center_drift->get();
+        y_center_drift->renew();
+        y_center_drift->renew();
+        float y_center = y_center_drift->get();
+        calculate_area(
+            area,
+            x_center,
+            y_center);
+        x1_arr_val[i] = x1;
+        y1_arr_val[i] = y1;
+        x2_arr_val[i] = x2;
+        y2_arr_val[i] = y2;
+    }
+    status = vxCopyArrayRange((vx_array)x1_arr, 0, batch_size, sizeof(size_t), x1_arr_val, VX_WRITE_ONLY, VX_MEMORY_TYPE_HOST);
+    if(status != VX_SUCCESS)
+        WRN("ERROR: vxCopyArrayRange x1_arr failed " +TOSTR(status));
+    status = vxCopyArrayRange((vx_array)y1_arr, 0, batch_size, sizeof(size_t), y1_arr_val, VX_WRITE_ONLY, VX_MEMORY_TYPE_HOST);
+    if(status != VX_SUCCESS)
+        WRN("ERROR: vxCopyArrayRange x1_arr failed " +TOSTR(status));
+    status = vxCopyArrayRange((vx_array)x2_arr, 0, batch_size, sizeof(size_t), x2_arr_val, VX_WRITE_ONLY, VX_MEMORY_TYPE_HOST);
+    if(status != VX_SUCCESS)
+        WRN("ERROR: vxCopyArrayRange x1_arr failed " +TOSTR(status));
+    status = vxCopyArrayRange((vx_array)y2_arr, 0, batch_size, sizeof(size_t), y2_arr_val, VX_WRITE_ONLY, VX_MEMORY_TYPE_HOST);
+    if(status != VX_SUCCESS)
+        WRN("ERROR: vxCopyArrayRange x1_arr failed " +TOSTR(status));
+}
+
+void RandomCropResizeParam::update_array_for_cmn() // For crop mirro normalize
+{
+    vx_status status = VX_SUCCESS;
+    for (uint i = 0; i < batch_size; i++)
+    {
+        area_coeff->renew();
+        float area = area_coeff->get();
+        x_center_drift->renew();
+        float x_center = x_center_drift->get();
+        y_center_drift->renew();
+        y_center_drift->renew();
+        float y_center = y_center_drift->get();
+        calculate_area(
+            area,
+            x_center,
+            y_center);
+        x1_arr_val[i] = x1;
+        y1_arr_val[i] = y1;
+        x2_arr_val[i] = x2 - x1 ;
+        y2_arr_val[i] = y2 - y1 ;
+
+    }
+    status = vxCopyArrayRange((vx_array)x1_arr, 0, batch_size, sizeof(size_t), x1_arr_val, VX_WRITE_ONLY, VX_MEMORY_TYPE_HOST);
+    if(status != VX_SUCCESS)
+        WRN("ERROR: vxCopyArrayRange x1_arr failed " +TOSTR(status));
+    status = vxCopyArrayRange((vx_array)y1_arr, 0, batch_size, sizeof(size_t), y1_arr_val, VX_WRITE_ONLY, VX_MEMORY_TYPE_HOST);
+    if(status != VX_SUCCESS)
+        WRN("ERROR: vxCopyArrayRange x1_arr failed " +TOSTR(status));
+    status = vxCopyArrayRange((vx_array)x2_arr, 0, batch_size, sizeof(size_t), x2_arr_val, VX_WRITE_ONLY, VX_MEMORY_TYPE_HOST);
+    if(status != VX_SUCCESS)
+        WRN("ERROR: vxCopyArrayRange x1_arr failed " +TOSTR(status));
+    status = vxCopyArrayRange((vx_array)y2_arr, 0, batch_size, sizeof(size_t), y2_arr_val, VX_WRITE_ONLY, VX_MEMORY_TYPE_HOST);
+    if(status != VX_SUCCESS)
+        WRN("ERROR: vxCopyArrayRange x1_arr failed " +TOSTR(status));
+}
+
 
 void RandomCropResizeParam::calculate_area(float area_coeff_, float x_center_drift_, float y_center_drift_)
 {
@@ -113,26 +187,6 @@ void RandomCropResizeParam::calculate_area(float area_coeff_, float x_center_dri
         WRN("Wrong crop area calculation")
 }
 
-void RandomCropResizeParam::create_scalars(vx_node node)
-{
-    auto ref = vxGetParameterByIndex(node, RESIZE_CROP_X1_OVX_PARAM_IDX);
-    if(vxQueryParameter(ref, VX_PARAMETER_ATTRIBUTE_REF, &x1_vx_scalar, sizeof(vx_scalar)) != VX_SUCCESS)
-        THROW("Extracting RESIZE_CROP_X1_OVX_PARAM_IDX failed")
-
-    ref = vxGetParameterByIndex(node, RESIZE_CROP_Y1_OVX_PARAM_IDX);
-    if(vxQueryParameter(ref, VX_PARAMETER_ATTRIBUTE_REF, &y1_vx_scalar, sizeof(vx_scalar)) != VX_SUCCESS)
-        THROW("Extracting RESIZE_CROP_Y1_OVX_PARAM_IDX failed")
-
-    ref = vxGetParameterByIndex(node, RESIZE_CROP_X2_OVX_PARAM_IDX);
-    if(vxQueryParameter(ref, VX_PARAMETER_ATTRIBUTE_REF, &x2_vx_scalar, sizeof(vx_scalar)) != VX_SUCCESS)
-        THROW("Extracting RESIZE_CROP_X2_OVX_PARAM_IDX failed")
-
-    ref = vxGetParameterByIndex(node, RESIZE_CROP_Y2_OVX_PARAM_IDX);
-    if(vxQueryParameter(ref, VX_PARAMETER_ATTRIBUTE_REF, &y2_vx_scalar, sizeof(vx_scalar)) != VX_SUCCESS)
-        THROW("Extracting RESIZE_CROP_Y2_OVX_PARAM_IDX failed")
-
-
-}
 
 Parameter<float> *RandomCropResizeParam::default_area()
 {

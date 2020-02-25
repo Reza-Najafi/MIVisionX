@@ -21,6 +21,10 @@ private:
     size_t _dest_width;
     size_t _dest_height;
     std::shared_ptr<RandomCropResizeParam> _crop_param;
+
+    vx_array src_width_array,src_height_array ,dst_width_array ,dst_height_array;
+    std::vector<vx_uint32> src_width ,src_height, dst_width, dst_height;
+    void update_dimensions();
 };
 
 

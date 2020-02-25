@@ -42,8 +42,8 @@ ImageLoaderSingleThread::reset()
 
     // Emptying the internal circular buffer
     _circ_buff.reset();
-    while(!_circ_buff_names.empty())
-        _circ_buff_names.pop();
+    while(!_circ_image_info.empty())
+        _circ_image_info.pop();
 
     // resetting the reader thread to the start of the media
     _image_counter = 0;
@@ -115,7 +115,9 @@ ImageLoaderSingleThread::initialize(ReaderConfig reader_cfg, DecoderConfig decod
         de_init();
         throw;
     }
-    _image_names.resize(_batch_size);
+    _decoded_img_info._image_names.resize(_batch_size);
+    _decoded_img_info._decoded_height.resize(_batch_size);
+    _decoded_img_info._decoded_width.resize(batch_size);
     _circ_buff.init(_mem_type, _output_mem_size);
     _is_initialized = true;
     LOG("Loader module initialized");
@@ -143,7 +145,6 @@ ImageLoaderSingleThread::load_routine()
     _remaining_image_count = _image_loader->count();
     while(_internal_thread_running)
     {
-
         auto data = _circ_buff.get_write_buffer();
         if(!_internal_thread_running)
             break;
@@ -151,11 +152,13 @@ ImageLoaderSingleThread::load_routine()
         auto load_status = LoaderModuleStatus::NO_MORE_DATA_TO_READ;
         {
             load_status = _image_loader->load(data,
-                                              _image_names,
-                                              _output_image->info().batch_size(),
-                                              _output_image->info().width(),
-                                              _output_image->info().height_batch(),
-                                              _output_image->info().color_format() );
+                                             _decoded_img_info._image_names,
+                                             _output_image->info().batch_size(),
+                                             _output_image->info().width(),
+                                             _output_image->info().height_batch(),
+                                             _decoded_img_info._decoded_width,
+                                             _decoded_img_info._decoded_height,
+                                             _output_image->info().color_format() );
 
             if(load_status == LoaderModuleStatus::OK)
             {
@@ -163,9 +166,8 @@ ImageLoaderSingleThread::load_routine()
                 // Pushing to the _circ_buff and _circ_buff_names must happen all at the same time
                 _circ_buff.push();
                  _image_counter += _output_image->info().batch_size();
-                _circ_buff_names.push(_image_names);
+                _circ_image_info.push(_decoded_img_info);
             }
-
         }
         if(load_status != LoaderModuleStatus::OK)
         {
@@ -227,8 +229,10 @@ ImageLoaderSingleThread::update_output_image()
         // Reason for the mutex here: Pop from _circ_buff and _circ_buff_names happens at the same time so that
         // image and it's id stay matched
         std::unique_lock<std::mutex> lock(_names_buff_lock);
-        _output_image->set_names(_circ_buff_names.front());
-        _circ_buff_names.pop();
+        decoded_image_info d_img_info = _circ_image_info.front();
+        _output_image->set_image_id(d_img_info._image_names);
+        _output_image->update_image_dims(d_img_info._decoded_width, d_img_info._decoded_height);
+        _circ_image_info.pop();
         _circ_buff.pop();
         if(!_loop)
             _remaining_image_count -= _batch_size;

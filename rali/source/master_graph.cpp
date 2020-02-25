@@ -148,7 +148,6 @@ MasterGraph::create_single_graph()
                 image->create_virtual(_context, _graph->get());
                 _internal_images.push_back(image);
             }
-
         node->create(_graph);
     }
     _graph->verify();
@@ -165,8 +164,6 @@ MasterGraph::build()
     for(auto&& output_image : _output_images)
         if(!(output_image->info() == _output_image_info))
             THROW("Dimension of the output images do not match")
-
-
 
     allocate_output_tensor();
     size_t w = _output_image_info.width();
@@ -318,7 +315,7 @@ MasterGraph::reset()
 
     // stop the internal processing thread so that the
     _processing = false;
-    _ring_buffer.cancel_writing();
+    _ring_buffer.unblock_writer();
     if(_output_thread.joinable())
         _output_thread.join();
     _ring_buffer.reset();
@@ -681,7 +678,7 @@ void MasterGraph::output_routine()
         ERR("Exception thrown in the process routine" + STR(e.what()) + STR("\n"));
         std::cerr << "Process routine stopped because of an exception \n";
         _processing = false;
-        _ring_buffer.cancel_all_future_waits();
+        _ring_buffer.release_all_blocked_calls();
     }
 }
 
@@ -707,8 +704,8 @@ void MasterGraph::start_processing()
 void MasterGraph::stop_processing()
 {
     _processing = false;
-    _ring_buffer.cancel_reading();
-    _ring_buffer.cancel_writing();
+    _ring_buffer.unblock_reader();
+    _ring_buffer.unblock_writer();
     if(_output_thread.joinable())
         _output_thread.join();
 }

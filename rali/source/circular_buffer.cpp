@@ -51,7 +51,7 @@ cl_mem CircularBuffer::get_read_buffer_dev()
 unsigned char* CircularBuffer::get_read_buffer_host()
 {
     if(!_initialized)
-        return nullptr;
+        THROW("Circular buffer not initialized")
     block_if_empty();
     return _host_buffer_ptrs[_read_ptr];
 }
@@ -59,7 +59,7 @@ unsigned char* CircularBuffer::get_read_buffer_host()
 unsigned char*  CircularBuffer::get_write_buffer()
 {
     if(!_initialized)
-        return nullptr;
+        THROW("Circular buffer not initialized")
     block_if_full();
     return(_host_buffer_ptrs[_write_ptr]);
 }

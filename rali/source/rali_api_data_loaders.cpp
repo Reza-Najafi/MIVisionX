@@ -95,7 +95,6 @@ raliJpegFileSource(
 
         auto [width, height] = use_input_dimension? std::make_tuple(max_width, max_height):
                                find_max_image_size(decode_size_policy, source_path);
-
         auto [color_format, num_of_planes] = convert_color_format(rali_color_format);
 
         auto info = ImageInfo(width, height,
@@ -103,7 +102,6 @@ raliJpegFileSource(
                               num_of_planes,
                               rali_context->master_graph->mem_type(),
                               color_format );
-
         output = rali_context->master_graph->create_loader_output_image(info);
 
         rali_context->master_graph->add_node<JpegFileNode>({}, {output})->init(num_threads, source_path, loop);

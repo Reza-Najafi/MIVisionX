@@ -6,6 +6,25 @@
 
 #define DBG_TIMING 1 // Enables timings for debug purposes, timings will get printed after loading all the files
 
+#define NUMSF  16
+static const tjscalingfactor sf[NUMSF] = {
+  { 2, 1 },
+  { 15, 8 },
+  { 7, 4 },
+  { 13, 8 },
+  { 3, 2 },
+  { 11, 8 },
+  { 5, 4 },
+  { 9, 8 },
+  { 1, 1 },
+  { 7, 8 },
+  { 3, 4 },
+  { 5, 8 },
+  { 1, 2 },
+  { 3, 8 },
+  { 1, 4 },
+  { 1, 8 }
+};
 
 std::tuple<Decoder::ColorFormat, unsigned > 
 interpret_color_format(RaliColorFormat color_format ) 
@@ -73,6 +92,8 @@ ImageReadAndDecode::load(unsigned char* buff,
                          unsigned batch_size,
                          unsigned output_width,
                          unsigned output_height,
+                         std::vector<uint>& decoded_width,
+                         std::vector<uint>& decoded_height,
                          RaliColorFormat output_color_format )
 {
     if(output_width == 0 || output_height == 0 )
@@ -111,13 +132,19 @@ ImageReadAndDecode::load(unsigned char* buff,
             continue;
         }
 
-        _reader->read(_compressed_buff.data(), fsize);
+        auto actual_read_size = _reader->read(_compressed_buff.data(), fsize);
         auto image_name = _reader->id();
         _reader->close();
         _file_load_time.end();// Debug timing
 
 
         _decode_time.start();// Debug timing
+        int width, height, jpeg_sub_samp;
+        if(_decoder->decode_info(_compressed_buff.data(), actual_read_size, &width, &height, &jpeg_sub_samp ) != Decoder::Status::OK)
+        {
+            WRN("Could not decode the header of the: "+ _reader->id())
+            continue;
+        }
 
         // Images are stacked on top of each other, offset defines 
         // where in the buffer the data of a new image starts
@@ -132,9 +159,24 @@ ImageReadAndDecode::load(unsigned char* buff,
         {
             continue;
         }
+
+        uint scaledw, scaledh;
+
+        if (output_width == 0) output_width = width;
+        if (single_image_height == 0) single_image_height = height;
+        for (int i = 0; i < NUMSF; i++) {
+            scaledw = TJSCALED(width, sf[i]);
+            scaledh = TJSCALED(height, sf[i]);
+            if (scaledw <= output_width && scaledh <= single_image_height){
+               break;
+            }
+        }
+
         _decode_time.end();// Debug timing
         names[file_counter] = image_name;
-        file_counter++;	
+        decoded_width[file_counter] = scaledw;
+        decoded_height[file_counter] = scaledh;
+        file_counter++;
     }
 
     return LoaderModuleStatus::OK;

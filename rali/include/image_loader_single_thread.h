@@ -34,8 +34,14 @@ private:
     std::mutex _names_buff_lock;
     std::thread _load_thread;
     RaliMemType _mem_type;
-    std::queue<std::vector<std::string>> _circ_buff_names;//!< Stores the loaded images names (data is stored in the _circ_buff)
-    std::vector<std::string> _image_names;//!< Name/ID of all the images in tha batch loaded most recently
+    struct decoded_image_info {
+        std::vector<std::string> _image_names;
+        std::vector<uint> _decoded_width;
+        std::vector<uint> _decoded_height;
+    }_decoded_img_info;
+
+    std::queue<decoded_image_info> _circ_image_info;//!< Stores the loaded images names, decoded_width and decoded_height(data is stored in the _circ_buff)
+
     CircularBuffer _circ_buff;
     bool _is_initialized;
     bool _ready;

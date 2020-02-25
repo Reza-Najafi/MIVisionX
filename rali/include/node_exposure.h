@@ -16,6 +16,8 @@ public:
 
 private:
     ParameterVX<float> _shift;
+    std::vector<vx_uint32> _width, _height;
+    vx_array _width_array ,_height_array;
+    void update_dimensions();
     constexpr static float SHIFT_RANGE [2] = {0.15, 0.95};
-    constexpr static unsigned SHIFT_OVX_PARAM_IDX = 2;
 };

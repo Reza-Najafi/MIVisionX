@@ -8,6 +8,14 @@
 #include "timing_debug.h"
 #include "loader_module.h"
 
+/**
+ * Compute the scaled value of <tt>dimension</tt> using the given scaling
+ * factor.  This macro performs the integer equivalent of <tt>ceil(dimension *
+ * scalingFactor)</tt>.
+ */
+#define TJSCALED(dimension, scalingFactor) \
+  ((dimension * scalingFactor.num + scalingFactor.denom - 1) / \
+   scalingFactor.denom)
 
 class ImageReadAndDecode
 {
@@ -25,6 +33,8 @@ public:
         unsigned batch_size,
         unsigned output_width,
         unsigned output_height,
+        std::vector<uint>& decoded_width,
+        std::vector<uint>& decoded_height,
         RaliColorFormat output_color_format );
 
     //! returns timing info or other status information

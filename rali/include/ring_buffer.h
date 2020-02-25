@@ -18,9 +18,9 @@ public:
     void reset();
     void pop();
     void push();
-    void cancel_reading();
-    void cancel_writing();
-    void cancel_all_future_waits();
+    void unblock_reader();
+    void unblock_writer();
+    void release_all_blocked_calls();
     RaliMemType mem_type() { return _mem_type; }
     void block_if_empty();
     void block_if_full();
@@ -39,7 +39,7 @@ private:
     std::vector<std::vector<void*>> _dev_sub_buffer;
     std::vector<std::vector<unsigned char>> _host_master_buffers;
     std::vector<std::vector<void*>> _host_sub_buffers;
-    bool _dont_wait = false;
+    bool _dont_block = false;
     RaliMemType _mem_type;
     DeviceResources _dev;
     size_t _write_ptr;

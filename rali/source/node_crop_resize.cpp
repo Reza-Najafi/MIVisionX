@@ -23,22 +23,63 @@ void CropResizeNode::create(std::shared_ptr<Graph> graph)
 
     if(_dest_width == 0 || _dest_height == 0)
         THROW("Uninitialized destination dimension")
+    _crop_param->create_array(graph ,_inputs[0]->info().batch_size());
+    src_width.resize(_outputs[0]->info().batch_size());
+    src_height.resize(_outputs[0]->info().batch_size());
+    dst_width.resize(_outputs[0]->info().batch_size());
+    dst_height.resize(_outputs[0]->info().batch_size());
+    for (uint i=0; i < _inputs[0]->info().batch_size(); i++ ) {
+         src_width[i] = _inputs[0]->info().width();
+         src_height[i] = _inputs[0]->info().height_single();
+         dst_width[i] = _outputs[0]->info().width();
+         dst_height[i] = _outputs[0]->info().height_single();
+    }
+    src_width_array = vxCreateArray(vxGetContext((vx_reference)_graph->get()), VX_TYPE_UINT32, _inputs[0]->info().batch_size());
+    src_height_array = vxCreateArray(vxGetContext((vx_reference)_graph->get()), VX_TYPE_UINT32, _inputs[0]->info().batch_size());
+    dst_width_array = vxCreateArray(vxGetContext((vx_reference)_graph->get()), VX_TYPE_UINT32, _outputs[0]->info().batch_size());
+    dst_height_array = vxCreateArray(vxGetContext((vx_reference)_graph->get()), VX_TYPE_UINT32, _outputs[0]->info().batch_size());
+    vx_status width_status, height_status;
+    width_status = vxAddArrayItems(src_width_array,_inputs[0]->info().batch_size(), src_width.data(), sizeof(vx_uint32));
+    height_status = vxAddArrayItems(src_height_array,_inputs[0]->info().batch_size(), src_height.data(), sizeof(vx_uint32));
+    if(width_status != 0 || height_status != 0)
+        THROW(" vxAddArrayItems failed in the crop resize node (vxExtrppNode_ResizeCropbatchPD    )  node: "+ TOSTR(width_status) + "  "+ TOSTR(height_status))
+    width_status = vxAddArrayItems(dst_width_array,_outputs[0]->info().batch_size(), dst_width.data(), sizeof(vx_uint32));
+    height_status = vxAddArrayItems(dst_height_array,_outputs[0]->info().batch_size(), dst_height.data(), sizeof(vx_uint32));
+    if(width_status != 0 || height_status != 0)
+        THROW(" vxAddArrayItems failed in the crop resize node (vxExtrppNode_ResizeCropbatchPD    )  node: "+ TOSTR(width_status) + "  "+ TOSTR(height_status))
 
-
-    _node = vxExtrppNode_ResizeCrop(_graph->get(), _inputs[0]->handle(), _outputs[0]->handle(), _dest_width, _dest_height,
-                                    _crop_param->x1, _crop_param->y1, _crop_param->x2, _crop_param->y2);
+    _node = vxExtrppNode_ResizeCropbatchPD(_graph->get(), _inputs[0]->handle(), src_width_array, src_height_array, _outputs[0]->handle(), dst_width_array,
+                        dst_height_array, _crop_param->x1_arr, _crop_param->y1_arr, _crop_param->x2_arr, _crop_param->y2_arr,_outputs[0]->info().batch_size());
 
     vx_status status;
     if((status = vxGetStatus((vx_reference)_node)) != VX_SUCCESS)
-        THROW("Error adding the crop resize node (vxExtrppNode_ResizeCrop) failed: "+TOSTR(status))
+        THROW("Error adding the crop resize node (vxExtrppNode_ResizeCropbatchPD    ) failed: "+TOSTR(status))
+}
 
-    _crop_param->create_scalars(_node);
+void CropResizeNode::update_dimensions()
+{
+    std::vector<uint> width, height;
+
+    width.resize( _inputs[0]->info().batch_size());
+    height.resize( _inputs[0]->info().batch_size());
+    for (int i = 0; i < _inputs[0]->info().batch_size(); i++ )
+    {
+        src_width[i] = _inputs[0]->info().get_image_width(i);
+        src_height[i] = _inputs[0]->info().get_image_height(i);
+    }
+    vx_status width_status, height_status;
+    width_status = vxCopyArrayRange((vx_array)src_width_array, 0, _outputs[0]->info().batch_size(), sizeof(vx_uint32), src_width.data(), VX_WRITE_ONLY, VX_MEMORY_TYPE_HOST); //vxAddArrayItems(_width_array,_outputs[0]->info().batch_size(), _width, sizeof(vx_uint32));
+    height_status = vxCopyArrayRange((vx_array)src_height_array, 0, _outputs[0]->info().batch_size(), sizeof(vx_uint32), src_height.data(), VX_WRITE_ONLY, VX_MEMORY_TYPE_HOST); //vxAddArrayItems(_height_array,_inputs[0]->info().batch_size(), _height, sizeof(vx_uint32));
+    if(width_status != 0 || height_status != 0)
+        THROW(" vxCopyArrayRange failed in the crop resize node (vxExtrppNode_ResizeCropbatchPD    )  node: "+ TOSTR(width_status) + "  "+ TOSTR(height_status))
 }
 
 void CropResizeNode::update_parameters()
 {
-    _crop_param->update();
+    update_dimensions();
+    _crop_param->update_array();
 }
+
 void CropResizeNode::init(float area, float x_center_drift, float y_center_drift)
 {
     _crop_param->set_area_coeff(ParameterFactory::instance()->create_single_value_param(area));

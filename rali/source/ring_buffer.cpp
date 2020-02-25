@@ -13,7 +13,7 @@ void RingBuffer::block_if_empty()
     std::unique_lock<std::mutex> lock(_lock);
     if(empty())
     { // if the current read buffer is being written wait on it
-        if(_dont_wait)
+        if(_dont_block)
             return;
         _wait_for_load.wait(lock);
     }
@@ -25,7 +25,7 @@ void RingBuffer:: block_if_full()
     // Write the whole buffer except for the last spot which is being read by the reader thread
     if(full())
     {
-        if(_dont_wait)
+        if(_dont_block)
             return;
         _wait_for_unload.wait(lock);
     }
@@ -58,19 +58,19 @@ std::vector<void*> RingBuffer::get_write_buffers()
 }
 
 
-void RingBuffer::cancel_reading()
+void RingBuffer::unblock_reader()
 {
     // Wake up the reader thread in case it's waiting for a load
     _wait_for_load.notify_all();
 }
 
-void RingBuffer::cancel_all_future_waits()
+void RingBuffer::release_all_blocked_calls()
 {
-    _dont_wait = true;
-    cancel_reading();
-    cancel_writing();
+    _dont_block = true;
+    unblock_reader();
+    unblock_writer();
 }
-void RingBuffer::cancel_writing()
+void RingBuffer::unblock_writer()
 {
     // Wake up the writer thread in case it's waiting for an unload
     _wait_for_unload.notify_all();
@@ -142,7 +142,7 @@ void RingBuffer::reset()
     _write_ptr = 0;
     _read_ptr = 0;
     _level = 0;
-    _dont_wait = false;
+    _dont_block = false;
 }
 
 RingBuffer::~RingBuffer()
