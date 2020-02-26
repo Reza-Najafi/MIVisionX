@@ -27,10 +27,10 @@ THE SOFTWARE.
 #include <cstring>
 #include <chrono>
 #include <cstdio>
-#include <unistd.h>
+
 #include <opencv2/opencv.hpp>
 #include <opencv/highgui.h>
-#include <vector>
+
 
 #include "rali_api.h"
 
@@ -39,12 +39,12 @@ using namespace cv;
 #define DISPLAY
 using namespace std::chrono;
 
-int test(int test_case, const char* path, const char* outName, int rgb, int gpu, int display, int width, int height);
+int test(int test_case, const char* path, const char* outName, int rgb, bool processing_device, int display, int width, int height, int batch_size);
 int main(int argc, const char ** argv)
 {
     // check command-line usage
     const size_t MIN_ARG_COUNT = 2;
-    printf( "Usage: image_augmentation <image-dataset-folder> output_image_name <width> <height> test_case display-on-off gpu=1/cpu=0 rgb=1/grayscale =0  \n" );
+    printf( "Usage: rali_unittest <image-dataset-folder> output_image_name <width> <height> test_case display-on-off gpu=1/cpu=0 rgb=1/grayscale =0  \n" );
     if(argc < MIN_ARG_COUNT)
         return -1;
 
@@ -56,7 +56,7 @@ int main(int argc, const char ** argv)
 
     bool display = 1;// Display the images
     int rgb = 1;// process color images
-    bool gpu = 1;
+    bool processing_device = 1;
     int test_case = 0;
 
     if (argc >= argIdx + MIN_ARG_COUNT)
@@ -66,34 +66,33 @@ int main(int argc, const char ** argv)
         display = atoi(argv[++argIdx]);
 
     if (argc >= argIdx + MIN_ARG_COUNT)
-        gpu = atoi(argv[++argIdx]);
+        processing_device = atoi(argv[++argIdx]);
 
     if (argc >= argIdx + MIN_ARG_COUNT)
         rgb = atoi(argv[++argIdx]);
 
-    test(test_case, path, outName, rgb, gpu, display, width, height);
+    int inputBatchSize = 1;
+
+    test(test_case, path, outName, rgb, processing_device, display, width, height, inputBatchSize);
 
     return 0;
 }
 
-int test(int test_case, const char* path, const char* outName, int rgb, int gpu, int display, int width, int height)
+int test(int test_case, const char* path, const char* outName, int rgb, bool processing_device, int display, int width, int height, int batch_size)
 {
     size_t num_threads = 1;
-    int inputBatchSize = 1;
+    int inputBatchSize = batch_size;
     int decode_max_width = 0;
     int decode_max_height = 0;
     std::cout << ">>> test case " << test_case << std::endl;
-    std::cout << ">>> Running on " << (gpu ? "GPU" : "CPU") << " , "<< (rgb ? " Color ":" Grayscale ")<< std::endl;
+    std::cout << ">>> Running on " << (processing_device ? "GPU" : "CPU") << " , "<< (rgb ? " Color ":" Grayscale ")<< std::endl;
 
-    RaliImageColor color_format = (rgb != 0) ? RaliImageColor::RALI_COLOR_RGB24
-                                             : RaliImageColor::RALI_COLOR_U8;
+    RaliImageColor color_format = (rgb != 0) ? RaliImageColor::RALI_COLOR_RGB24 : RaliImageColor::RALI_COLOR_U8;
 
-    auto handle = raliCreate(inputBatchSize,
-                             gpu ? RaliProcessMode::RALI_PROCESS_GPU : RaliProcessMode::RALI_PROCESS_CPU, 0,
-                             1);
+    auto handle = raliCreate(inputBatchSize, processing_device ? RaliProcessMode::RALI_PROCESS_GPU : RaliProcessMode::RALI_PROCESS_CPU, 0, 1);
 
     if (raliGetStatus(handle) != RALI_OK) {
-        std::cout << "Could not create the Rali contex\n";
+        std::cout << "Could not create the Rali context\n";
         return -1;
     }
 
@@ -103,14 +102,14 @@ int test(int test_case, const char* path, const char* outName, int rgb, int gpu,
 
     // Creating uniformly distributed random objects to override some of the default augmentation parameters
     RaliFloatParam rand_crop_area = raliCreateFloatUniformRand(0.3, 0.5);
-    RaliIntParam color_temp_adj = raliCreateIntParameter(-50);
+    RaliIntParam color_temp_adj = raliCreateIntParameter(0);
 
     // Creating a custom random object to set a limited number of values to randomize the rotation angle
     const size_t num_values = 3;
     float values[num_values] = {0, 10, 135};
     double frequencies[num_values] = {1, 5, 5};
-    RaliFloatParam rand_angle = raliCreateFloatRand(values, frequencies,
-                                                    sizeof(values) / sizeof(values[0]));
+    
+    RaliFloatParam rand_angle = raliCreateFloatRand(values, frequencies, num_values);
 
 
     /*>>>>>>>>>>>>>>>>>>> Graph description <<<<<<<<<<<<<<<<<<<*/
@@ -135,8 +134,6 @@ int test(int test_case, const char* path, const char* outName, int rgb, int gpu,
     RaliImage image0 = raliResize(handle, input1, resize_w, resize_h, false);
     RaliImage image0_b = raliRotateFixed(handle, image0, 30, false);
 
-    RaliFlipAxis axis_h = RALI_FLIP_HORIZONTAL;
-    RaliFlipAxis axis_v = RALI_FLIP_VERTICAL;
 
     RaliImage image1;
 
@@ -198,13 +195,13 @@ int test(int test_case, const char* path, const char* outName, int rgb, int gpu,
         }
             break;
         case 11: {
-            std::cout << ">>>>>>> Running " << "raliFlip horizontal" << std::endl;
-            image1 = raliFlip(handle, image0, axis_h, true);
+            std::cout << ">>>>>>> Running " << "raliFlipFixed horizontal" << std::endl;
+            image1 = raliFlipFixed(handle, image0, 0, true);
         }
             break;
         case 12: {
-            std::cout << ">>>>>>> Running " << "raliFlip vertical" << std::endl;
-            image1 = raliFlip(handle, image0, axis_v, true);
+            std::cout << ">>>>>>> Running " << "raliFlipFixed vertical" << std::endl;
+            image1 = raliFlipFixed(handle, image0, 1, true);
         }
             break;
         case 13: {
@@ -290,7 +287,7 @@ int test(int test_case, const char* path, const char* outName, int rgb, int gpu,
             break;
         case 29: {
             std::cout << ">>>>>>> Running " << "raliRainFixed" << std::endl;
-            image1 = raliRainFixed(handle, image0, 0.5, true);
+            image1 = raliRainFixed(handle, image0, 0.5, 2, 10, 0.5, true);
         }
             break;
         case 30: {
@@ -343,15 +340,18 @@ int test(int test_case, const char* path, const char* outName, int rgb, int gpu,
             return -1;
     }
 
+    if(raliGetStatus(handle) != RALI_OK)
+    {
+        std::cout << "Error while adding the augmentation nodes " << std::endl;
+        auto err_msg = raliGetErrorMessage(handle);
+        std::cout << err_msg << std::endl;
+    }
     // Calling the API to verify and build the augmentation graph
-    raliVerify(handle);
-
-    if (raliGetStatus(handle) != RALI_OK) {
-        std::cout << "Could not verify the augmentation graph " << raliGetErrorMessage(handle);
+    if(raliVerify(handle) != RALI_OK)
+    {
+        std::cout << "Could not verify the augmentation graph" << std::endl;
         return -1;
     }
-
-
 
     printf("Augmented copies count %d\n", raliGetOutputImageCount(handle));
 
@@ -375,8 +375,8 @@ int test(int test_case, const char* path, const char* outName, int rgb, int gpu,
         if (raliRun(handle) != 0)
             break;
 
-        auto last_colot_temp = raliGetIntValue(color_temp_adj);
-        raliUpdateIntParameter(last_colot_temp + 1, color_temp_adj);
+        auto last_color_temp = raliGetIntValue(color_temp_adj);
+        raliUpdateIntParameter(last_color_temp + 1, color_temp_adj);
 
         raliCopyToOutput(handle, mat_input.data, h * w * p);
         if (!display)
