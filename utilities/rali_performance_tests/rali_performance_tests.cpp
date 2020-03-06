@@ -78,7 +78,7 @@ int main(int argc, const char ** argv)
 
 int test(int test_case, const char* path, int rgb, int processing_device, int width, int height, int batch_size)
 {
-    size_t num_threads = 1;
+    size_t num_decode_threads = batch_size;
     int inputBatchSize = batch_size;
     int decode_max_width = 0;
     int decode_max_height = 0;
@@ -118,9 +118,9 @@ int test(int test_case, const char* path, int rgb, int processing_device, int wi
     // The jpeg file loader can automatically select the best size to decode all images to that size
     // User can alternatively set the size or change the policy that is used to automatically find the size
     if (decode_max_height <= 0 || decode_max_width <= 0)
-        image0 = raliJpegFileSource(handle, path, color_format, num_threads, false, true);
+        image0 = raliJpegFileSource(handle, path, color_format, num_decode_threads, false, true);
     else
-        image0 = raliJpegFileSource(handle, path, color_format, num_threads, false, true,
+        image0 = raliJpegFileSource(handle, path, color_format, num_decode_threads, false, true,
                                     RALI_USE_USER_GIVEN_SIZE, decode_max_width, decode_max_height);
 
     if (raliGetStatus(handle) != RALI_OK) {
